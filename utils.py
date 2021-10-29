@@ -1,7 +1,6 @@
 
 import pyglet
 from constants import *
-import configparser
 from ast import literal_eval
 
 def show_gif(filename):
