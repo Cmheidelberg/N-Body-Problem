@@ -44,7 +44,7 @@ try:
             print(f"Warning: rounding up resolution to {RESOLUTION}.") 
 
     K1=TIME
-    K2 = 36*K1
+    K2 = VELOCITY_MULTIPLYER*K1
 
 except KeyError as e:
     print(f"Malconfigured {CONFIG_FILE_NAME}. KeyError: {e}")
@@ -68,13 +68,17 @@ try:
     COLORS = []
 
     for i,name in enumerate(BODIE_NAMES):
-        LOCATIONS[i*3] = config[name]["location-x"]
-        LOCATIONS[i*3+1] = config[name]["location-y"]
-        LOCATIONS[i*3+2] = config[name]["location-z"] 
 
-        VELOCITIES[i*3] = config[name]["velocity-x"]
-        VELOCITIES[i*3+1] = config[name]["velocity-y"]
-        VELOCITIES[i*3+2] = config[name]["velocity-z"] 
+        tmp_locations = config[name]["locations"].strip('][').split(",")
+        tmp_velocities = config[name]["velocities"].strip('][').split(",")
+
+        LOCATIONS[i*3] = tmp_locations[0]
+        LOCATIONS[i*3+1] = tmp_locations[1]
+        LOCATIONS[i*3+2] = tmp_locations[2]
+
+        VELOCITIES[i*3] = tmp_velocities[0]
+        VELOCITIES[i*3+1] = tmp_velocities[1]
+        VELOCITIES[i*3+2] = tmp_velocities[2] 
 
         MASSES[i] = config[name]["mass"]
         COLORS.append(config[name]["color"])        
@@ -105,17 +109,14 @@ def ThreeBodyEquations(w,t):
                 rads[i][j] = np.linalg.norm(w[j*3:j*3+3] - w[i*3:i*3+3])
                 rads[j][i] = np.linalg.norm(w[j*3:j*3+3] - w[i*3:i*3+3])
 
-    tmp = 0
     dvarr = []
+    drarr = []
     for i in range(0,NUMBER_OF_BODIES):
+        tmp = 0
         for j in range(0,NUMBER_OF_BODIES):
             if i != j:
                 tmp += K1*MASSES[j]*(w[j*3:j*3+3]-w[i*3:i*3+3])/rads[i][j]**3
         dvarr.append(tmp)
-        tmp = 0
-
-    drarr = []
-    for i in range(0,NUMBER_OF_BODIES):
         drarr.append(K2*w[(i*3)+(NUMBER_OF_BODIES*3):(i*3)+(NUMBER_OF_BODIES*3)+3])
 
     r_derivatives = drarr[0]
@@ -162,7 +163,6 @@ if __name__ == "__main__":
         three_body_sol=scipy.integrate.odeint(ThreeBodyEquations,init_params,time_span)
         bodie_solutions = []
         for index in range(NUMBER_OF_BODIES):
-            print(index)
             bodie_solutions.append(three_body_sol[:,index*3:index*3+3])
         
         #Create figure
