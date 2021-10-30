@@ -3,6 +3,28 @@ import pyglet
 from constants import *
 from ast import literal_eval
 
+def directory_select_menu(directories):
+
+
+    print("Please select a configuration file")
+    for i,d in enumerate(directories):
+        print(f"{i+1}. {d}")
+    
+    while True:
+        selection = input("Selection: ")
+
+        if selection.isdecimal():
+            num = int(selection)
+            if num-1 >= 0 and num-1 < len(directories):
+                return num-1
+        else:
+            for i in range(len(directories)):
+                if selection.lower() == directories[i].lower():
+                    return i
+        
+        print("invalid selection.\n")
+
+
 def show_gif(filename):
     if os.path.exists(filename): 
         animation = pyglet.image.load_animation(filename)

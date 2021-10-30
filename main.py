@@ -9,7 +9,6 @@ import configparser
 
 from utils import *
 
-
 try:
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE_NAME) 
@@ -44,7 +43,7 @@ try:
             print(f"Warning: rounding up resolution to {RESOLUTION}.") 
 
     K1=TIME
-    K2 = VELOCITY_MULTIPLYER*K1
+    K2 = VELOCITY_SCALER*K1
 
 except KeyError as e:
     print(f"Malconfigured {CONFIG_FILE_NAME}. KeyError: {e}")
@@ -94,13 +93,52 @@ except SyntaxError as e:
     print("I dont know how you got a syntax error from the {BODY_FILENAME}")
     quit(1)
 
+def update_bodie_parameters(path,BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS):
+    try:
+        config = configparser.ConfigParser()
+        config.read(path)
+        BODIE_NAMES = config.sections()
+        NUMBER_OF_BODIES = len(BODIE_NAMES)
+        LOCATIONS = np.ones(len(BODIE_NAMES)*3, dtype="float64")
+        VELOCITIES = np.ones(len(BODIE_NAMES)*3, dtype="float64")
+        MASSES = np.ones(len(BODIE_NAMES), dtype="float64")
+        COLORS = []
+        for i,name in enumerate(BODIE_NAMES):
+
+            tmp_locations = config[name]["locations"].strip('][').split(",")
+            tmp_velocities = config[name]["velocities"].strip('][').split(",")
+
+            LOCATIONS[i*3] = tmp_locations[0]
+            LOCATIONS[i*3+1] = tmp_locations[1]
+            LOCATIONS[i*3+2] = tmp_locations[2]
+
+            VELOCITIES[i*3] = tmp_velocities[0]
+            VELOCITIES[i*3+1] = tmp_velocities[1]
+            VELOCITIES[i*3+2] = tmp_velocities[2] 
+
+            MASSES[i] = config[name]["mass"]
+            COLORS.append(config[name]["color"])        
+
+    except KeyError as e:
+        print(f"Malconfigured {BODY_FILE_NAME}. KeyError: {e}")
+        quit(1)
+    except ValueError as e:
+        print(f"Value error in {BODY_FILE_NAME}: {e}")
+        quit(1)
+    except SyntaxError as e:
+        print(f"Syntax error in {BODY_FILE_NAME}: {e}")
+        print("I dont know how you got a syntax error from the {BODY_FILENAME}")
+        quit(1)
+    return BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS
+
+
 def render_animation(figure, axis,save_location):
     anim = FuncAnimation(figure, update, frames=np.arange(0, FRAMES, STEP), repeat=True, fargs=(figure, axis))
     anim.save(save_location, dpi=DPI, fps=FPS,progress_callback=lambda i, n: print(f'Rendering: {int((i/n)*100)}%') if (i/n)*100 % 10 == 0 else False)
     print("done rendering.")
     print(f"File saved to: {save_location}")
 
-def ThreeBodyEquations(w,t):
+def NBodySimulation(w,t):
 
     rads = [[0 for x in range(NUMBER_OF_BODIES)] for y in range(NUMBER_OF_BODIES)]
     for i in range(0,NUMBER_OF_BODIES):
@@ -149,44 +187,45 @@ if __name__ == "__main__":
         print("No output directory found. Making new one")
         os.mkdir(OUTPUT_DIR_LOCATION)
 
-    inp = input("do you want to render new cube? [y/n]")
+    inp = input("do you want to use a preset config? [y/n]")
     if inp.lower() == 'y':
-        amnt = input("how many?")
-        amnt = int(amnt)
+        dirs = os.listdir("bodies-presets")
+        dir_index = directory_select_menu(dirs)
+        BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_bodie_parameters(os.path.join("bodies-presets", dirs[dir_index]),BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS)
 
-        #Package initial parameters
-        init_params=np.array([LOCATIONS,VELOCITIES]) #Initial parameters
-        init_params=init_params.flatten() #Flatten to make 1D array
-        time_span=np.linspace(0,0.005*TIME,RESOLUTION) #20 orbital periods and 500 points
+    #Package initial parameters
+    init_params=np.array([LOCATIONS,VELOCITIES]) #Initial parameters
+    init_params=init_params.flatten() #Flatten to make 1D array
+    time_span=np.linspace(0,0.005*TIME,RESOLUTION) #20 orbital periods and 500 points
 
-        #Ode
-        three_body_sol=scipy.integrate.odeint(ThreeBodyEquations,init_params,time_span)
-        bodie_solutions = []
-        for index in range(NUMBER_OF_BODIES):
-            bodie_solutions.append(three_body_sol[:,index*3:index*3+3])
-        
-        #Create figure
-        fig=plt.figure(figsize=(7,7))
-        #Create 3D axes
-        ax=fig.add_subplot(111,projection="3d")
-        #Plot the orbits
+    #Ode
+    three_body_sol=scipy.integrate.odeint(NBodySimulation,init_params,time_span)
+    bodie_solutions = []
+    for index in range(NUMBER_OF_BODIES):
+        bodie_solutions.append(three_body_sol[:,index*3:index*3+3])
+    
+    #Create figure
+    fig=plt.figure(figsize=(7,7))
+    #Create 3D axes
+    ax=fig.add_subplot(111,projection="3d")
+    #Plot the orbits
 
-        #Draw lines of motion
-        for i in range(0,NUMBER_OF_BODIES):
-            ax.plot((bodie_solutions[i])[:,0],(bodie_solutions[i])[:,1],(bodie_solutions[i])[:,2],color=COLORS[i])
+    #Draw lines of motion
+    for i in range(0,NUMBER_OF_BODIES):
+        ax.plot((bodie_solutions[i])[:,0],(bodie_solutions[i])[:,1],(bodie_solutions[i])[:,2],color=COLORS[i])
 
-        #Place a point on the end location
-        for i in range(0,NUMBER_OF_BODIES):
-            ax.scatter((bodie_solutions[i])[-1,0],(bodie_solutions[i])[-1,1],(bodie_solutions[i])[-1,2],color=COLORS[i],marker="o",s=50,label=BODIE_NAMES[i])
+    #Place a point on the end location
+    for i in range(0,NUMBER_OF_BODIES):
+        ax.scatter((bodie_solutions[i])[-1,0],(bodie_solutions[i])[-1,1],(bodie_solutions[i])[-1,2],color=COLORS[i],marker="o",s=50,label=BODIE_NAMES[i])
 
-        #Labels
-        ax.set_xlabel("x",fontsize=14)
-        ax.set_ylabel("y",fontsize=14)
-        ax.set_zlabel("z",fontsize=14)
-        ax.set_facecolor(BACKGROUND_COLOR)
-        #ax.set_title("Visualization of orbits of stars in a two-body system\n",fontsize=14)
-        #ax.legend(loc="upper left",fontsize=14)
-        plt.show()
+    #Labels
+    ax.set_xlabel("x",fontsize=14)
+    ax.set_ylabel("y",fontsize=14)
+    ax.set_zlabel("z",fontsize=14)
+    ax.set_facecolor(BACKGROUND_COLOR)
+    #ax.set_title("Visualization of orbits of stars in a two-body system\n",fontsize=14)
+    #ax.legend(loc="upper left",fontsize=14)
+    plt.show()
     #show_gif(save_file_name)
     print("Success")
 
