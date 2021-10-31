@@ -30,6 +30,7 @@ try:
     #simulation
     TIME = int(config["simulation"]["time"])
     RESOLUTION = int(config["simulation"]["resolution"])
+    CENTER_ON_BODY = config["simulation"]["center_camera_on_body"]
     
     if TIME <= 200:
     
@@ -59,14 +60,14 @@ except SyntaxError as e:
 try:
     config = configparser.ConfigParser()
     config.read(BODY_FILE_NAME)
-    BODIE_NAMES = config.sections()
-    NUMBER_OF_BODIES = len(BODIE_NAMES)
-    LOCATIONS = np.ones(len(BODIE_NAMES)*3, dtype="float64")
-    VELOCITIES = np.ones(len(BODIE_NAMES)*3, dtype="float64")
-    MASSES = np.ones(len(BODIE_NAMES), dtype="float64")
+    BODY_NAMES = config.sections()
+    NUMBER_OF_BODIES = len(BODY_NAMES)
+    LOCATIONS = np.ones(len(BODY_NAMES)*3, dtype="float64")
+    VELOCITIES = np.ones(len(BODY_NAMES)*3, dtype="float64")
+    MASSES = np.ones(len(BODY_NAMES), dtype="float64")
     COLORS = []
 
-    for i,name in enumerate(BODIE_NAMES):
+    for i,name in enumerate(BODY_NAMES):
 
         tmp_locations = config[name]["locations"].strip('][').split(",")
         tmp_velocities = config[name]["velocities"].strip('][').split(",")
@@ -93,17 +94,17 @@ except SyntaxError as e:
     print("I dont know how you got a syntax error from the {BODY_FILENAME}")
     quit(1)
 
-def update_bodie_parameters(path,BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS):
+def update_body_parameters(path,BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS):
     try:
         config = configparser.ConfigParser()
         config.read(path)
-        BODIE_NAMES = config.sections()
-        NUMBER_OF_BODIES = len(BODIE_NAMES)
-        LOCATIONS = np.ones(len(BODIE_NAMES)*3, dtype="float64")
-        VELOCITIES = np.ones(len(BODIE_NAMES)*3, dtype="float64")
-        MASSES = np.ones(len(BODIE_NAMES), dtype="float64")
+        BODY_NAMES = config.sections()
+        NUMBER_OF_BODIES = len(BODY_NAMES)
+        LOCATIONS = np.ones(len(BODY_NAMES)*3, dtype="float64")
+        VELOCITIES = np.ones(len(BODY_NAMES)*3, dtype="float64")
+        MASSES = np.ones(len(BODY_NAMES), dtype="float64")
         COLORS = []
-        for i,name in enumerate(BODIE_NAMES):
+        for i,name in enumerate(BODY_NAMES):
 
             tmp_locations = config[name]["locations"].strip('][').split(",")
             tmp_velocities = config[name]["velocities"].strip('][').split(",")
@@ -129,7 +130,7 @@ def update_bodie_parameters(path,BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITI
         print(f"Syntax error in {BODY_FILE_NAME}: {e}")
         print("I dont know how you got a syntax error from the {BODY_FILENAME}")
         quit(1)
-    return BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS
+    return BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS
 
 
 def render_animation(figure, axis,save_location):
@@ -137,6 +138,26 @@ def render_animation(figure, axis,save_location):
     anim.save(save_location, dpi=DPI, fps=FPS,progress_callback=lambda i, n: print(f'Rendering: {int((i/n)*100)}%') if (i/n)*100 % 10 == 0 else False)
     print("done rendering.")
     print(f"File saved to: {save_location}")
+
+
+def offset_solition_by_body_location(body_solutions, index):
+
+    # body_solutions[i])[:,0], body_solutions[i])[:,1]
+    
+    for curr in range(len(body_solutions[index])):
+        x = body_solutions[index][curr,0]
+        y = body_solutions[index][curr,1]
+        z = body_solutions[index][curr,2]
+
+        x_offset = -x
+        y_offset = -y
+        z_offset = -z
+
+        for i in range(len(body_solutions)):  
+            body_solutions[i][curr,0] += x_offset
+            body_solutions[i][curr,1] += y_offset
+            body_solutions[i][curr,2] += z_offset
+
 
 def NBodySimulation(w,t):
 
@@ -191,7 +212,7 @@ if __name__ == "__main__":
     if inp.lower() == 'y':
         dirs = os.listdir("bodies-presets")
         dir_index = directory_select_menu(dirs)
-        BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_bodie_parameters(os.path.join("bodies-presets", dirs[dir_index]),BODIE_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS)
+        BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.join("bodies-presets", dirs[dir_index]),BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS)
 
     #Package initial parameters
     init_params=np.array([LOCATIONS,VELOCITIES]) #Initial parameters
@@ -200,9 +221,9 @@ if __name__ == "__main__":
 
     #Ode
     three_body_sol=scipy.integrate.odeint(NBodySimulation,init_params,time_span)
-    bodie_solutions = []
+    body_solutions = []
     for index in range(NUMBER_OF_BODIES):
-        bodie_solutions.append(three_body_sol[:,index*3:index*3+3])
+        body_solutions.append(three_body_sol[:,index*3:index*3+3])
     
     #Create figure
     fig=plt.figure(figsize=(7,7))
@@ -210,13 +231,20 @@ if __name__ == "__main__":
     ax=fig.add_subplot(111,projection="3d")
     #Plot the orbits
 
+    #normalize
+    for index,name in enumerate(BODY_NAMES):
+        print(f"{name} == {CENTER_ON_BODY}")
+        if name.lower() == CENTER_ON_BODY.lower():
+            offset_solition_by_body_location(body_solutions, index)
+    
+
     #Draw lines of motion
     for i in range(0,NUMBER_OF_BODIES):
-        ax.plot((bodie_solutions[i])[:,0],(bodie_solutions[i])[:,1],(bodie_solutions[i])[:,2],color=COLORS[i])
+        ax.plot((body_solutions[i])[:,0],(body_solutions[i])[:,1],(body_solutions[i])[:,2],color=COLORS[i])
 
     #Place a point on the end location
     for i in range(0,NUMBER_OF_BODIES):
-        ax.scatter((bodie_solutions[i])[-1,0],(bodie_solutions[i])[-1,1],(bodie_solutions[i])[-1,2],color=COLORS[i],marker="o",s=50,label=BODIE_NAMES[i])
+        ax.scatter((body_solutions[i])[-1,0],(body_solutions[i])[-1,1],(body_solutions[i])[-1,2],color=COLORS[i],marker="o",s=50,label=BODY_NAMES[i])
 
     #Labels
     ax.set_xlabel("x",fontsize=14)
