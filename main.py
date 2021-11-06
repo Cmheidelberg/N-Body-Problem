@@ -3,98 +3,68 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 import os
+import argparse
 import scipy
 import scipy.integrate
 import configparser
 
 from utils import *
 
-try:
-    config = configparser.ConfigParser()
-    config.read(CONFIG_FILE_NAME) 
+# parser = argparse.ArgumentParser(description='Hello world this is a description')
+# parser.add_argument('--time','-t', type=int, nargs='1', help='Set the total time to run the simupation for. (unitless)')
+# parser.add_argument('--resolution','-r', type=int, nargs='1', help='Set the resolution value for the calculations. (unitless)')
 
-    # Frame
-    WINDOW_SIZE = int(config["figure"]["window_size"])
-    BACKGROUND_COLOR = literal_eval(config["figure"]["background_color"])
-    DRAW_AXIS = config["figure"]["draw_axis"]
-    
-    # Animation
-    DPI = int(config["animation"]["dpi"])
-    FPS = int(config["animation"]["fps"])
-    STEP = int(config["animation"]["step"])
-    FRAMES = int(config["animation"]["frames"])
+def update_config_parameters(path):
+    try:
+        config = configparser.ConfigParser()
+        config.read(path) 
 
-    # Name
-    OUTPUT_NAME = config["file"]["name"]
+        # Frame
+        WINDOW_SIZE = int(config["figure"]["window_size"])
+        BACKGROUND_COLOR = literal_eval(config["figure"]["background_color"])
+        DRAW_AXIS = config["figure"]["draw_axis"]
+        
+        # Animation
+        DPI = int(config["animation"]["dpi"])
+        FPS = int(config["animation"]["fps"])
+        STEP = int(config["animation"]["step"])
+        FRAMES = int(config["animation"]["frames"])
 
-    #simulation
-    TIME = int(config["simulation"]["time"])
-    RESOLUTION = int(config["simulation"]["resolution"])
-    CENTER_ON_BODY = config["simulation"]["center_camera_on_body"]
-    
-    if TIME <= 200:
-    
-        if RESOLUTION%TIME != 0:
-            RESOLUTION = int(np.round(RESOLUTION/TIME,decimals=0) * TIME)
-            print(f"Warning: rounding up resolution to {RESOLUTION}.")            
+        # Name
+        OUTPUT_NAME = config["file"]["name"]
 
-    else:
-        if RESOLUTION%(TIME*0.005) != 0:
-            RESOLUTION = int(np.round(RESOLUTION/(TIME*0.005),decimals=0) * TIME)
-            print(f"Warning: rounding up resolution to {RESOLUTION}.") 
+        #simulation
+        TIME = int(config["simulation"]["time"])
+        RESOLUTION = int(config["simulation"]["resolution"])
+        CENTER_ON_BODY = config["simulation"]["center_camera_on_body"]
+        
+        if TIME <= 200:
+        
+            if RESOLUTION%TIME != 0:
+                RESOLUTION = int(np.round(RESOLUTION/TIME,decimals=0) * TIME)
+                print(f"Warning: rounding up resolution to {RESOLUTION}.")            
 
-    K1=TIME
-    K2 = VELOCITY_SCALER*K1
+        else:
+            if RESOLUTION%(TIME*0.005) != 0:
+                RESOLUTION = int(np.round(RESOLUTION/(TIME*0.005),decimals=0) * TIME)
+                print(f"Warning: rounding up resolution to {RESOLUTION}.") 
 
-except KeyError as e:
-    print(f"Malconfigured {CONFIG_FILE_NAME}. KeyError: {e}")
-    quit(1)
-except ValueError as e:
-    print(f"Value error in {CONFIG_FILE_NAME}: {e}")
-    quit(1)
-except SyntaxError as e:
-    print(f"Syntax error in {CONFIG_FILE_NAME}: {e}")
-    print("This probably means a Tuple value in the config is malformed")
-    quit(1)
+        K1=TIME
+        K2 = VELOCITY_SCALER*K1
+        return WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,DPI,FPS,STEP,FRAMES,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2
 
-try:
-    config = configparser.ConfigParser()
-    config.read(BODY_FILE_NAME)
-    BODY_NAMES = config.sections()
-    NUMBER_OF_BODIES = len(BODY_NAMES)
-    LOCATIONS = np.ones(len(BODY_NAMES)*3, dtype="float64")
-    VELOCITIES = np.ones(len(BODY_NAMES)*3, dtype="float64")
-    MASSES = np.ones(len(BODY_NAMES), dtype="float64")
-    COLORS = []
+    except KeyError as e:
+        print(f"Malconfigured {CONFIG_FILE_NAME}. KeyError: {e}")
+        quit(1)
+    except ValueError as e:
+        print(f"Value error in {CONFIG_FILE_NAME}: {e}")
+        quit(1)
+    except SyntaxError as e:
+        print(f"Syntax error in {CONFIG_FILE_NAME}: {e}")
+        print("This probably means a Tuple value in the config is malformed")
+        quit(1)
 
-    for i,name in enumerate(BODY_NAMES):
-
-        tmp_locations = config[name]["locations"].strip('][').split(",")
-        tmp_velocities = config[name]["velocities"].strip('][').split(",")
-
-        LOCATIONS[i*3] = tmp_locations[0]
-        LOCATIONS[i*3+1] = tmp_locations[1]
-        LOCATIONS[i*3+2] = tmp_locations[2]
-
-        VELOCITIES[i*3] = tmp_velocities[0]
-        VELOCITIES[i*3+1] = tmp_velocities[1]
-        VELOCITIES[i*3+2] = tmp_velocities[2] 
-
-        MASSES[i] = config[name]["mass"]
-        COLORS.append(config[name]["color"])        
-
-except KeyError as e:
-    print(f"Malconfigured {BODY_FILE_NAME}. KeyError: {e}")
-    quit(1)
-except ValueError as e:
-    print(f"Value error in {BODY_FILE_NAME}: {e}")
-    quit(1)
-except SyntaxError as e:
-    print(f"Syntax error in {BODY_FILE_NAME}: {e}")
-    print("I dont know how you got a syntax error from the {BODY_FILENAME}")
-    quit(1)
-
-def update_body_parameters(path,BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS):
+def update_body_parameters(path):
     try:
         config = configparser.ConfigParser()
         config.read(path)
@@ -198,12 +168,17 @@ def NBodySimulation(w,t):
 #     v_com=(m1*v1+m2*v2+m3*v3)/(m1+m2+m3)
 #     return 
 
+BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.curdir)
+WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,DPI,FPS,STEP,FRAMES,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(CONFIG_FILE_NAME)
+
+
 # MAIN
 if __name__ == "__main__":
 
     # Create output file if it does not exist
     save_file_name = os.path.join(OUTPUT_DIR_LOCATION,OUTPUT_NAME)
-    
+
+
     if not os.path.exists(OUTPUT_DIR_LOCATION):
         print("No output directory found. Making new one")
         os.mkdir(OUTPUT_DIR_LOCATION)
@@ -212,7 +187,7 @@ if __name__ == "__main__":
     if inp.lower() == 'y':
         dirs = os.listdir("bodies-presets")
         dir_index = directory_select_menu(dirs)
-        BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.join("bodies-presets", dirs[dir_index]),BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS)
+        BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.join("bodies-presets", dirs[dir_index]))
 
     #Package initial parameters
     init_params=np.array([LOCATIONS,VELOCITIES]) #Initial parameters
