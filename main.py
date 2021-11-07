@@ -4,15 +4,23 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 import os
 import argparse
+from numpy.lib.npyio import save
 import scipy
 import scipy.integrate
 import configparser
 
 from utils import *
 
-# parser = argparse.ArgumentParser(description='Hello world this is a description')
-# parser.add_argument('--time','-t', type=int, nargs='1', help='Set the total time to run the simupation for. (unitless)')
-# parser.add_argument('--resolution','-r', type=int, nargs='1', help='Set the resolution value for the calculations. (unitless)')
+parser = argparse.ArgumentParser(description='Hello world this is a description')
+parser.add_argument('--time','-t', type=int, nargs=1, help='Set the total time to run the simupation for. (unitless)')
+parser.add_argument('--resolution','-r', type=int, nargs=1, help='Set the resolution value for the calculations. (unitless)')
+parser.add_argument('--center_on','-c', type=str, nargs=1, help='Name of the body to center the frame of reference on. If body cannot be found no reference is set.')
+parser.add_argument('--save_output','-s', type=str, nargs=1, help='Output directory to save solved equation to (saves as .nbp)')
+parser.add_argument('--load_equation','-l', type=str, nargs=1, help='Load solved equation. (.nbp file)')
+parser.add_argument('--body_config','-b', type=str, nargs=1, help='Path to N body config file')
+
+save_equation = None
+load_equation = None
 
 def update_config_parameters(path):
     try:
@@ -168,8 +176,15 @@ def NBodySimulation(w,t):
 #     v_com=(m1*v1+m2*v2+m3*v3)/(m1+m2+m3)
 #     return 
 
-BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.curdir)
+BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(BODY_FILE_NAME)
 WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,DPI,FPS,STEP,FRAMES,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(CONFIG_FILE_NAME)
+
+# Add .nbp file extension if one not included in name
+def parse_save_load_name(filename):
+    tmp = filename.split('.')
+    if len(tmp) == 1:
+        return filename + ".nbp"
+    return filename
 
 
 # MAIN
@@ -177,7 +192,32 @@ if __name__ == "__main__":
 
     # Create output file if it does not exist
     save_file_name = os.path.join(OUTPUT_DIR_LOCATION,OUTPUT_NAME)
+    args = parser.parse_args()
+    tmp = vars(args)
+    
+    if tmp['time'] is not None:
+        TIME = tmp['time'][0]
+    
+    if tmp['resolution'] is not None:
+        RESOLUTION = tmp['resolution'][0]
 
+    if tmp['center_on'] is not None:
+        CENTER_ON_BODY = tmp['center_on'][0]
+
+    if tmp['save_output'] is not None:
+        save_equation = tmp['save_output'][0]
+        save_equation = parse_save_load_name(save_equation)
+
+    if tmp['load_equation'] is not None:
+        load_equation = tmp['load_equation'][0]
+        load_equation = parse_save_load_name(load_equation)
+        warning_with_no_effect = ['resolution','time','center_on','body_config']
+        for element in warning_with_no_effect:
+            if tmp[element] is not None:
+                print(f"WARNING: setting {element} will have no effect when loading a previously solved problme.")
+
+    if tmp['body_config'] is not None:
+        BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(tmp['body_config'][0])    
 
     if not os.path.exists(OUTPUT_DIR_LOCATION):
         print("No output directory found. Making new one")
@@ -194,21 +234,30 @@ if __name__ == "__main__":
     init_params=init_params.flatten() #Flatten to make 1D array
     time_span=np.linspace(0,0.005*TIME,RESOLUTION) #20 orbital periods and 500 points
 
-    #Ode
-    three_body_sol=scipy.integrate.odeint(NBodySimulation,init_params,time_span)
+    #Solve or load ODEs
+    if load_equation is not None:
+        with open(load_equation, 'rb') as f:
+            three_body_sol = np.load(f)
+    else:
+        three_body_sol=scipy.integrate.odeint(NBodySimulation,init_params,time_span)
+
+
+    if save_equation is not None and load_equation is None:
+        with open(save_equation, 'wb') as f:
+            np.save(f, three_body_sol)
+
     body_solutions = []
     for index in range(NUMBER_OF_BODIES):
         body_solutions.append(three_body_sol[:,index*3:index*3+3])
     
     #Create figure
-    fig=plt.figure(figsize=(7,7))
+    fig=plt.figure(figsize=(WINDOW_SIZE,WINDOW_SIZE))
     #Create 3D axes
     ax=fig.add_subplot(111,projection="3d")
     #Plot the orbits
 
     #normalize
     for index,name in enumerate(BODY_NAMES):
-        print(f"{name} == {CENTER_ON_BODY}")
         if name.lower() == CENTER_ON_BODY.lower():
             offset_solition_by_body_location(body_solutions, index)
     
