@@ -11,16 +11,46 @@ import configparser
 
 from utils import *
 
+def parse_timestep(input_string):
+    if not len(input_string) > 0:
+        print("Could not parse --display_timesteps argument. using [0,100]")
+        return 0, 100
+    
+    if input_string[0] == '[':
+        input_string = input_string[1:]
+    
+    if input_string[-1] == ']':
+        input_string = input_string[:-1]
+    
+    split = input_string.split("-")
+    split = input_string.split(",")
+
+    if split[0].isnumeric() and split[-1].isnumeric():
+        start = int(split[0])
+        end = int(split[-1])
+
+        if start <= end:
+            return start,end
+        else:
+            print(f"WARNING: Cannot have a start value larger than the end value. Using [{end},{start}] instead")
+            return end,start
+    else:
+        print("Could not parse --display_timesteps argument correctly. using [0,100]")
+        return 0, 100
+
 parser = argparse.ArgumentParser(description='Hello world this is a description')
 parser.add_argument('--time','-t', type=int, nargs=1, help='Set the total time to run the simupation for. (unitless)')
 parser.add_argument('--resolution','-r', type=int, nargs=1, help='Set the resolution value for the calculations. (unitless)')
 parser.add_argument('--center_on','-c', type=str, nargs=1, help='Name of the body to center the frame of reference on. If body cannot be found no reference is set.')
+parser.add_argument('--body_config','-b', type=str, nargs=1, help="Specify the body config path. (start position and velocity of bodies)")
+parser.add_argument('--display_timesteps','-ts', type=parse_timestep,help="Specify a percentage range of the figure to display. For example, to graph only the first half input [0,50].")
+
 parser.add_argument('--save_output','-s', type=str, nargs=1, help='Output directory to save solved equation to (saves as .nbp)')
 parser.add_argument('--load_equation','-l', type=str, nargs=1, help='Load solved equation. (.nbp file)')
-parser.add_argument('--body_config','-b', type=str, nargs=1, help='Path to N body config file')
+
 
 save_equation = None
-load_equation = None
+load_equation = None  
 
 def update_config_parameters(path):
     try:
@@ -197,6 +227,8 @@ if __name__ == "__main__":
     
     if tmp['time'] is not None:
         TIME = tmp['time'][0]
+        K1=TIME
+        K2 = VELOCITY_SCALER*K1
     
     if tmp['resolution'] is not None:
         RESOLUTION = tmp['resolution'][0]
@@ -208,10 +240,15 @@ if __name__ == "__main__":
         save_equation = tmp['save_output'][0]
         save_equation = parse_save_load_name(save_equation)
 
+    start = 0
+    end = 100
+    if tmp['display_timesteps'] is not None:
+        start,end = tmp['display_timesteps']
+
     if tmp['load_equation'] is not None:
         load_equation = tmp['load_equation'][0]
         load_equation = parse_save_load_name(load_equation)
-        warning_with_no_effect = ['resolution','time','center_on','body_config']
+        warning_with_no_effect = ['resolution','time','body_config','save_output']
         for element in warning_with_no_effect:
             if tmp[element] is not None:
                 print(f"WARNING: setting {element} will have no effect when loading a previously solved problme.")
@@ -219,15 +256,16 @@ if __name__ == "__main__":
     if tmp['body_config'] is not None:
         BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(tmp['body_config'][0])    
 
+    if tmp['body_config'] is None and tmp['center_on'] is not None:
+        inp = input("do you want to use a preset config? [y/n]")
+        if inp.lower() == 'y':
+            dirs = os.listdir("bodies-presets")
+            dir_index = directory_select_menu(dirs)
+            BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.join("bodies-presets", dirs[dir_index]))
+
     if not os.path.exists(OUTPUT_DIR_LOCATION):
         print("No output directory found. Making new one")
         os.mkdir(OUTPUT_DIR_LOCATION)
-
-    inp = input("do you want to use a preset config? [y/n]")
-    if inp.lower() == 'y':
-        dirs = os.listdir("bodies-presets")
-        dir_index = directory_select_menu(dirs)
-        BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.join("bodies-presets", dirs[dir_index]))
 
     #Package initial parameters
     init_params=np.array([LOCATIONS,VELOCITIES]) #Initial parameters
@@ -263,12 +301,20 @@ if __name__ == "__main__":
     
 
     #Draw lines of motion
+    length = len(body_solutions[0][:,0])
+    start_index = int(start*0.01*length)
+    end_index = int(end*0.01*length)-1
     for i in range(0,NUMBER_OF_BODIES):
-        ax.plot((body_solutions[i])[:,0],(body_solutions[i])[:,1],(body_solutions[i])[:,2],color=COLORS[i])
+        
+        first = (body_solutions[i])[start_index:end_index,0]
+        second = (body_solutions[i])[start_index:end_index,1]
+        third = (body_solutions[i])[start_index:end_index,2]
+
+        ax.plot(first,second,third,color=COLORS[i])
 
     #Place a point on the end location
     for i in range(0,NUMBER_OF_BODIES):
-        ax.scatter((body_solutions[i])[-1,0],(body_solutions[i])[-1,1],(body_solutions[i])[-1,2],color=COLORS[i],marker="o",s=50,label=BODY_NAMES[i])
+        ax.scatter((body_solutions[i])[end_index,0],(body_solutions[i])[end_index,1],(body_solutions[i])[end_index,2],color=COLORS[i],marker="o",s=50,label=BODY_NAMES[i])
 
     #Labels
     ax.set_xlabel("x",fontsize=14)
