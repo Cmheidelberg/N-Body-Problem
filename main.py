@@ -39,20 +39,33 @@ def parse_timestep(input_string):
         return 0, 100
 
 parser = argparse.ArgumentParser(description='Hello world this is a description')
-parser.add_argument('--time','-t', type=int, nargs=1, help='Set the total time to run the simupation for. (unitless)')
-parser.add_argument('--resolution','-r', type=int, nargs=1, help='Set the resolution value for the calculations. (unitless)')
-parser.add_argument('--center_on','-c', type=str, nargs=1, help='Name of the body to center the frame of reference on. If body cannot be found no reference is set.')
-parser.add_argument('--body_config','-b', type=str, nargs=1, help="Specify the body config path. (start position and velocity of bodies)")
-parser.add_argument('--display_timesteps','-ts', type=parse_timestep,help="Specify a percentage range of the figure to display. For example, to graph only the first half input [0,50].")
+parser.add_argument('--time','-t', type=int, nargs=1, 
+                    help='Set the total time to run the simupation for. (unitless)')
 
-parser.add_argument('--save_output','-s', type=str, nargs=1, help='Output directory to save solved equation to (saves as .nbp)')
-parser.add_argument('--load_equation','-l', type=str, nargs=1, help='Load solved equation. (.nbp file)')
+parser.add_argument('--resolution','-r', type=int, nargs=1, 
+                    help='Set the resolution value for the calculations. (unitless)')
 
+parser.add_argument('--center_on','-c', type=str, nargs=1, 
+                    help='Name of the body to center the frame of reference on. If body cannot be found no reference is set.')
+
+parser.add_argument('--body_config','-b', type=str, nargs=1, 
+                    help="Specify the body config path. (start position and velocity of bodies)")
+
+parser.add_argument('--display_timesteps','-ts', type=parse_timestep,
+                    help="Specify a percentage range of the figure to display. For example, to graph only the first half input [0,50].")
+
+parser.add_argument('--save_output','-s', type=str, nargs=1, 
+                    help='Output directory to save solved equation to (saves as .nbp)')
+
+parser.add_argument('--load_equation','-l', type=str, nargs=1, 
+                    help='Load solved equation. (.nbp file)')
 
 save_equation = None
 load_equation = None  
 
+
 def update_config_parameters(path):
+    '''Returns an array of variables with the values defined in the nbp config.'''
     try:
         config = configparser.ConfigParser()
         config.read(path) 
@@ -102,7 +115,9 @@ def update_config_parameters(path):
         print("This probably means a Tuple value in the config is malformed")
         quit(1)
 
+
 def update_body_parameters(path):
+    '''Returns an aray of variables from their values defined in the body config'''
     try:
         config = configparser.ConfigParser()
         config.read(path)
@@ -141,21 +156,33 @@ def update_body_parameters(path):
     return BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS
 
 
-def render_animation(figure, axis,save_location):
-    anim = FuncAnimation(figure, update, frames=np.arange(0, FRAMES, STEP), repeat=True, fargs=(figure, axis))
-    anim.save(save_location, dpi=DPI, fps=FPS,progress_callback=lambda i, n: print(f'Rendering: {int((i/n)*100)}%') if (i/n)*100 % 10 == 0 else False)
-    print("done rendering.")
-    print(f"File saved to: {save_location}")
+# def render_animation(figure, axis,save_location):
+#     anim = FuncAnimation(figure, update, frames=np.arange(0, FRAMES, STEP), repeat=True, fargs=(figure, axis))
+#     anim.save(save_location, dpi=DPI, fps=FPS,progress_callback=lambda i, n: print(f'Rendering: {int((i/n)*100)}%') if (i/n)*100 % 10 == 0 else False)
+#     print("done rendering.")
+#     print(f"File saved to: {save_location}")
 
 
 def offset_solition_by_body_location(body_solutions, index):
-
-    # body_solutions[i])[:,0], body_solutions[i])[:,1]
+    '''
+    Set center of reference frame to the body in a given index. Note: to set the reference frame to the center of mass pass -1 as index.
     
+    :param body_solutions: The arg is used for ...
+    :type body_solutions: list
+
+    '''
+
     for curr in range(len(body_solutions[index])):
-        x = body_solutions[index][curr,0]
-        y = body_solutions[index][curr,1]
-        z = body_solutions[index][curr,2]
+        
+        # If we are given a specific body index to center on
+        if index != -1:
+            x = body_solutions[index][curr,0]
+            y = body_solutions[index][curr,1]
+            z = body_solutions[index][curr,2]
+        
+        # If we are not given -1 center on center of mass of system
+        else:
+            x,y,z = calculate_center_of_mass(body_solutions, curr)
 
         x_offset = -x
         y_offset = -y
@@ -165,6 +192,26 @@ def offset_solition_by_body_location(body_solutions, index):
             body_solutions[i][curr,0] += x_offset
             body_solutions[i][curr,1] += y_offset
             body_solutions[i][curr,2] += z_offset
+
+
+def calculate_center_of_mass(body_solutions, curr):
+    '''Given the body_solutions and current index return an x,y, and z position for center of mass'''
+
+    com_x = 0
+    com_y = 0
+    com_z = 0
+    num_of_bodies = len(body_solutions)
+
+    for i in range(num_of_bodies):
+        com_x += body_solutions[i][curr,0] * MASSES[i]
+        com_y += body_solutions[i][curr,1] * MASSES[i]
+        com_z += body_solutions[i][curr,2] * MASSES[i]
+    
+    com_x = com_x/num_of_bodies
+    com_y = com_y/num_of_bodies 
+    com_z= com_z/num_of_bodies
+
+    return com_x, com_y, com_z
 
 
 def NBodySimulation(w,t):
@@ -196,26 +243,19 @@ def NBodySimulation(w,t):
 
     return flat_derivatives
 
-# def calculate_center_of_mass:
-#     #Update COM formula
-#     position_com = 0
-#     for p in MASSES:
-#         curr_r = 
-#     r_com=(m1*r1+m2*r2+m3*r3)/(m1+m2+m3)
-#     #Update velocity of COM formula
-#     v_com=(m1*v1+m2*v2+m3*v3)/(m1+m2+m3)
-#     return 
 
-BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(BODY_FILE_NAME)
-WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,DPI,FPS,STEP,FRAMES,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(CONFIG_FILE_NAME)
-
-# Add .nbp file extension if one not included in name
 def parse_save_load_name(filename):
+    '''Add .nbp file extension if file extension not included in name.'''
     tmp = filename.split('.')
     if len(tmp) == 1:
         return filename + ".nbp"
     return filename
 
+# ==============================================================================
+
+# Global Variables
+BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(BODY_FILE_NAME)
+WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,DPI,FPS,STEP,FRAMES,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(CONFIG_FILE_NAME)
 
 # MAIN
 if __name__ == "__main__":
@@ -261,7 +301,8 @@ if __name__ == "__main__":
         if inp.lower() == 'y':
             dirs = os.listdir("bodies-presets")
             dir_index = directory_select_menu(dirs)
-            BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.join("bodies-presets", dirs[dir_index]))
+            BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(os.path.join("bodies-presets", 
+                                                                                                    dirs[dir_index]))
 
     if not os.path.exists(OUTPUT_DIR_LOCATION):
         print("No output directory found. Making new one")
@@ -294,10 +335,16 @@ if __name__ == "__main__":
     ax=fig.add_subplot(111,projection="3d")
     #Plot the orbits
 
-    #normalize
+    # Offset reference fraim to center on body/location?
     for index,name in enumerate(BODY_NAMES):
         if name.lower() == CENTER_ON_BODY.lower():
             offset_solition_by_body_location(body_solutions, index)
+    
+    try:
+        if int(CENTER_ON_BODY) == -1:
+            offset_solition_by_body_location(body_solutions, -1)
+    except ValueError as v:
+        print("Ignoring value err")
     
 
     #Draw lines of motion
@@ -314,7 +361,10 @@ if __name__ == "__main__":
 
     #Place a point on the end location
     for i in range(0,NUMBER_OF_BODIES):
-        ax.scatter((body_solutions[i])[end_index,0],(body_solutions[i])[end_index,1],(body_solutions[i])[end_index,2],color=COLORS[i],marker="o",s=50,label=BODY_NAMES[i])
+        ax.scatter((body_solutions[i])[end_index,0],
+                   (body_solutions[i])[end_index,1],
+                   (body_solutions[i])[end_index,2],
+                   color=COLORS[i],marker="o",s=50,label=BODY_NAMES[i])
 
     #Labels
     ax.set_xlabel("x",fontsize=14)
