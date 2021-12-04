@@ -86,7 +86,7 @@ def take_user_input(prompt):
     slow_print_text(prompt)
     return input()
 
-def get_number_input(prompt,low=None,high=None):
+def get_int_input(prompt,low=None,high=None):
     '''
     Ask user to input a number. Repeat prompt until user gives a valid input. Optional low and high bounds
     Specify a min and max accepted range
@@ -108,11 +108,49 @@ def get_number_input(prompt,low=None,high=None):
         input_num = input()
 
         if input_num.isnumeric:
-            input_num = int(input_num)
-            if (low is None or input_num >= low) and (high is None or input_num <= high):
-                return input_num
-            else:
-                print(f"Input number must be between the range of {low} and {high}")
+            try:
+                input_num = int(input_num)
+                if (low is None or input_num >= low) and (high is None or input_num <= high):
+                    return input_num
+                else:
+                    print(f"Input number must be between the range of {low} and {high}")
+            except:
+                print("Invalid value. Please enter an integer")
+
+        else:
+            print("Input must be a number.")
+
+
+def get_float_input(prompt,low=None,high=None):
+    '''
+    Ask user to input a number. Repeat prompt until user gives a valid input. Optional low and high bounds
+    Specify a min and max accepted range
+    
+    :param prompt: Message to ask the user before taking their input
+    :type prompt: string
+
+    :param low: lowest accepted number (inclusive)
+    :type low: int,None
+
+    :param high: highest accepted number (inclusive)
+    :type high: int,None
+
+    :return input_num: Number input by user
+    '''
+
+    while(True):
+        print(prompt)
+        input_num = input()
+
+        if input_num.isnumeric:
+            try:
+                input_num = float(input_num)
+                if (low is None or input_num >= low) and (high is None or input_num <= high):
+                    return input_num
+                else:
+                    print(f"Input number must be between the range of {low} and {high}")
+            except:
+                print("Invalid value. Please enter a float")
 
         else:
             print("Input must be a number.")

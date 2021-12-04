@@ -140,7 +140,7 @@ def parse_timestep(input_string):
 
 parser = argparse.ArgumentParser(description='N-Body Simulator command line arguments. An interactable user menu is given if no arguments are given. By default the programs config and the body config used are located in the root of the project\'s directory')
 # parser.add_argument('--time','-t', type=int, nargs=1, 
-#                     help='Set the total time to run the simupation for. (unitless)')
+#                     help='Set the total time to run the simulation for. (unitless)')
 
 # parser.add_argument('--resolution','-r', type=int, nargs=1, 
 #                     help='Set the resolution value for the calculations. (unitless)')
@@ -338,9 +338,9 @@ def interactive_menu():
         
         # TODO: save/load needs to save and load config and body cfg with the .nbp file so the figure can be remade form it
         if(selection == 1):
-            dirs = os.listdir("saved-runs")
+            dirs = os.listdir(SAVED_RUNS_DIR)
             dir_index = directory_select_menu(dirs)
-            solved_dir = os.path.join("saved-runs", dirs[dir_index])
+            solved_dir = os.path.join(SAVED_RUNS_DIR, dirs[dir_index])
             load_equation = parse_save_load_name(solved_dir)
             with open(load_equation, 'rb') as f:
                 nbp_solutions = np.load(f)
@@ -367,7 +367,7 @@ def interactive_menu():
 
     if(nbp_solutions is None):
         time_before_run = datetime.now()
-        print("Running simupation. This may take a while...")
+        print("Running simulation. This may take a while...")
         nbp_solutions = get_nbp_solutions()
         time_after_run = datetime.now()
         print(f"Done! Time elapsed {time_after_run - time_before_run}")
@@ -414,9 +414,9 @@ def interactive_menu():
             curr_solution = offset_solition_by_body_location(body_solutions, center_reference_selection-2)
         if(selection == 3):
             print("What percentage of the run should the figure start drawing at (between 0 and 100). For example, to start one third of the way through the full simulation input 33")
-            start = get_number_input("Start value",low=0,high=100)
+            start = get_float_input(f"Input a start value. (current value {start})",low=0,high=100)
             print(f"What percentage of the run should the figure stop drawing at (between {start} and 100)")
-            end = get_number_input("End value",low=start,high=100)
+            end = get_float_input(f"Input an end value. (current value {end})",low=start,high=100)
         if(selection == 4):
             slow_print_text("What would you like to name the run?")
             name = input()
@@ -424,7 +424,7 @@ def interactive_menu():
             if name is None or len(name) == 0:
                 print("Invalid name. Using \"default\" instead")
                 name = "default"
-            save_path = os.path.join("saved-runs",name)
+            save_path = os.path.join(SAVED_RUNS_DIR,name)
             save_equation = parse_save_load_name(save_path)
             print(f"Saving run to: {save_path}")
             with open(save_equation, 'wb') as f:
@@ -480,11 +480,11 @@ def interactive_menu():
                     print("Saving figure options")
                     figure_options_done = True
         elif(selection == 6):
-            TIME = get_number_input(f"What time number would you like to use? Current run used {TIME}",low=0)
-            RESOLUTION = get_number_input(f"What resolution number would you like to use? Current run used {RESOLUTION}",low = 0)
+            TIME = get_int_input(f"What time number would you like to use? Current run used {TIME}",low=0)
+            RESOLUTION = get_int_input(f"What resolution number would you like to use? Current run used {RESOLUTION}",low = 0)
 
             time_before_run = datetime.now()
-            print("Re-Running simupation. This may take a while...")
+            print("Re-Running simulation. This may take a while...")
             nbp_solutions = get_nbp_solutions()
             time_after_run = datetime.now()
             print(f"Done! Time elapsed {time_after_run - time_before_run}")
@@ -530,7 +530,9 @@ def draw_figure(nbp_solutions):
         ax.set_zlabel("z",fontsize=14)
         ax.set_facecolor(BACKGROUND_COLOR)
         
-        if(FIGURE_TITLE is not None and len(FIGURE_TITLE) > 0):
+        
+        if(FIGURE_TITLE is not None and len(FIGURE_TITLE.strip("\"")) > 0):
+            FIGURE_TITLE.strip("\"")
             ax.set_title(FIGURE_TITLE,fontsize=14)
         
         if(DRAW_LEGEND is not None and DRAW_LEGEND.lower() == "on"):
