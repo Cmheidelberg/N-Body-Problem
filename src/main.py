@@ -106,8 +106,9 @@ def update_body_parameters(path):
 start = 0
 end = 100
 
-BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(BODY_FILE_NAME)
-WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,FIGURE_TITLE,DRAW_LEGEND,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(CONFIG_FILE_NAME)
+print(f"DEBUG: {CONFIG_FILE_PATH}")
+BODY_NAMES,NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(BODY_FILE_PATH)
+WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,FIGURE_TITLE,DRAW_LEGEND,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(CONFIG_FILE_PATH)
 save_equation = None
 load_equation = None  
 
@@ -298,7 +299,7 @@ def interactive_menu():
     options.append("Use preset config")         # 1
     options.append("Input path to my config")   # 2
     options.append("Use default configs")       # 3
-    options.append("Load solved problem [UNDER CONSTRUCTION]")       # 4 
+    options.append("Load solved problem")       # 4 
     options.append("Quit")                      # 5
     help_text = ("\n[SELECTION INFORMATION]\n" 
                 "1. Use preset config: present a list of preset N Body Problems to simulate. " 
@@ -310,24 +311,24 @@ def interactive_menu():
 
     selection = simple_menu_print(title, options,help_text)
     body_path = None
-    config_path = None
+    curr_config_path = None
     nbp_solutions = None
 
     if(selection == 1):
         title = "Please select a preset to simulate"
-        dirs = os.listdir("bodies-presets")
+        dirs = os.listdir(PRESETS_DIR)
         dir_index = directory_select_menu(dirs)
-        body_path = os.path.join("bodies-presets", dirs[dir_index])
-        config_path = "config.cfg"
+        body_path = os.path.join(PRESETS_DIR, dirs[dir_index])
+        curr_config_path = CONFIG_FILE_PATH
     elif(selection == 2):
         slow_print_text("Please enter a path to your body config file")
         body_path = input()
         
         slow_print_text("Please enter a path to your N Body Problem config file")
-        config_path = input()
+        curr_config_path = input()
     elif(selection == 3):
         body_path = None
-        config_path = None
+        curr_config_path = None
     elif(selection == 4):
         title = "How would you like to load?"
         options = []
@@ -344,6 +345,8 @@ def interactive_menu():
             load_equation = parse_save_load_name(solved_dir)
             with open(load_equation, 'rb') as f:
                 nbp_solutions = np.load(f)
+
+            print("Load successful")
 
         elif(selection == 2):
             slow_print_text("Please enter path to the file: ")
@@ -362,8 +365,8 @@ def interactive_menu():
 
     if(body_path is not None):
         BODY_NAMES, NUMBER_OF_BODIES,LOCATIONS,VELOCITIES,MASSES,COLORS = update_body_parameters(body_path)
-    if(config_path is not None):
-        WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,FIGURE_TITLE,DRAW_LEGEND,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(config_path)
+    if(curr_config_path is not None):
+        WINDOW_SIZE,BACKGROUND_COLOR,DRAW_AXIS,FIGURE_TITLE,DRAW_LEGEND,OUTPUT_NAME,TIME,RESOLUTION,CENTER_ON_BODY,K1,K2 = update_config_parameters(curr_config_path)
 
     if(nbp_solutions is None):
         time_before_run = datetime.now()
@@ -382,7 +385,7 @@ def interactive_menu():
     options.append("Show figure")                              # 1
     options.append("Choose reference frame")                   # 2
     options.append("Select start/end time")                    # 3
-    options.append("Save run [UNDER CONSTRUCTION]")            # 4
+    options.append("Save run")            # 4
     options.append("Figure Options")                           # 5
     options.append("Rerun Simulation with different timestep") # 6
     options.append("Quit")                                     # 7
