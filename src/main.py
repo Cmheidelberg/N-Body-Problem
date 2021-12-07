@@ -428,8 +428,14 @@ def interactive_menu():
                 print("Invalid name. Using \"default\" instead")
                 name = "default"
             save_path = os.path.join(SAVED_RUNS_DIR,name)
-            save_equation = parse_save_load_name(save_path)
+
+            if not os.path.exists(SAVED_RUNS_DIR):
+                print("No save directory found. Making new one")
+                os.mkdir(SAVED_RUNS_DIR)
+                
+            save_equation = parse_save_load_name(save_path)           
             print(f"Saving run to: {save_path}")
+
             with open(save_equation, 'wb') as f:
                 np.save(f, nbp_solutions)  
             print("done!\n")
