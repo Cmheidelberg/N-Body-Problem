@@ -86,6 +86,7 @@ def take_user_input(prompt):
     slow_print_text(prompt)
     return input()
 
+
 def get_int_input(prompt,low=None,high=None):
     '''
     Ask user to input a number. Repeat prompt until user gives a valid input. Optional low and high bounds
@@ -102,7 +103,6 @@ def get_int_input(prompt,low=None,high=None):
 
     :return input_num: Number input by user
     '''
-
     while(True):
         print(prompt)
         input_num = input()
@@ -180,4 +180,3 @@ def show_gif(filename):
         print(f"Error showing gif: \"{filename}\" does not exist.")
         print("Aborting")
         exit(1)
-

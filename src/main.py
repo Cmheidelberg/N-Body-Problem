@@ -268,14 +268,15 @@ def get_nbp_solutions():
     init_params=np.array([LOCATIONS,VELOCITIES])
     init_params=init_params.flatten()
     time_span=np.linspace(0,0.005*TIME,RESOLUTION)
+
     #Solve or load ODEs
     if load_equation is not None:
         with open(load_equation, 'rb') as f:
-            three_body_sol = np.load(f)
+            n_body_sol = np.load(f)
     else:
-        three_body_sol=scipy.integrate.odeint(NBodySimulation,init_params,time_span)
+        n_body_sol=scipy.integrate.odeint(NBodySimulation,init_params,time_span)
     
-    return three_body_sol
+    return n_body_sol
 
 
 def parse_save_load_name(filename):
@@ -299,7 +300,7 @@ def interactive_menu():
     options.append("Use preset config")         # 1
     options.append("Input path to my config")   # 2
     options.append("Use default configs")       # 3
-    options.append("Load solved problem")       # 4 
+    options.append("Load solved problem [UNDER CONSTRUCTION]")       # 4 
     options.append("Quit")                      # 5
     help_text = ("\n[SELECTION INFORMATION]\n" 
                 "1. Use preset config: present a list of preset N Body Problems to simulate. " 
@@ -385,7 +386,7 @@ def interactive_menu():
     options.append("Show figure")                              # 1
     options.append("Choose reference frame")                   # 2
     options.append("Select start/end time")                    # 3
-    options.append("Save run")            # 4
+    options.append("Save run [UNDER CONSTRUCTION]")            # 4
     options.append("Figure Options")                           # 5
     options.append("Rerun Simulation with different timestep") # 6
     options.append("Quit")                                     # 7
@@ -605,15 +606,15 @@ if __name__ == "__main__":
         os.mkdir(OUTPUT_DIR_LOCATION)
 
 
-    three_body_sol = get_nbp_solutions()
+    n_body_sol = get_nbp_solutions()
 
     if save_equation is not None and load_equation is None:
         with open(os.path.join(SAVED_RUNS_DIR,save_equation), 'wb') as f:
-            np.save(f, three_body_sol)  
+            np.save(f, n_body_sol)  
 
     body_solutions = []
     for index in range(NUMBER_OF_BODIES):
-        body_solutions.append(three_body_sol[:,index*3:index*3+3])
+        body_solutions.append(n_body_sol[:,index*3:index*3+3])
 
     # Offset reference fraim to center on body/location?
     for index,name in enumerate(BODY_NAMES):
